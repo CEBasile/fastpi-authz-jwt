@@ -1,73 +1,58 @@
 # fastapi-authz-jwt
 
-A small helper library for FastAPI that provides JWT decoding and scope-based authorization.
+[![CI](https://github.com/cebasile/fastapi-authz-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/cebasile/fastapi-authz-jwt/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/OWNER/REPO/branch/main/graph/badge.svg)](https://codecov.io/gh/OWNER/REPO)
+[![PyPI version](https://img.shields.io/pypi/v/fastapi-authz-jwt.svg)](https://pypi.org/project/fastapi-authz-jwt)
 
-Features
+A small helper library for FastAPI that provides JWT decoding and scope-based authorization. Integrates directly with FastAPI's Security and SecurityScopes system.
 
-- Decode and validate JWTs using keys fetched by `pyjwt-key-fetcher`.
-- Integrates with FastAPI `Security` dependencies and `SecurityScopes` for scope checks.
-- Lightweight, dependency-injection friendly design suitable for tests.
+**Features:**
+
+- Zero middleware!
+- 100% Test Coverage!
+- Lightweight and dependency-injection friendly design!
 
 ## Quickstart
 
-1. Install the package via pip:
+Install the package via pip:
 
 ```bash
 pip install fastapi-authz-jwt
 ```
 
-1. Use in your FastAPI app:
+Use in your FastAPI app:
 
 ```python
 from fastapi import FastAPI, Security
-from fastapi_authz_jwt.auth import TokenData, require_scopes
+from fastapi_security_jwt import JWTBearer, TokenData
+
+# Instantiate same as FastAPI docs with your OpenID Connect URL
+jwt_bearer = JWTBearer(openid_connect_url="https://<your_url>/.well-known/openid-configuration")
 
 app = FastAPI()
 
 @app.get("/public")
 async def public():
- return {"message": "public"}
+    return {"message": "public"}
 
 @app.get("/protected")
-async def protected(token: TokenData = Security(require_scopes)):
- return {"user": token.username}
+async def protected(token: TokenData = Security(jwt_bearer, scopes=["user"])):
+    return {"user": token.username}
 ```
 
-## Testing
+## Using Security Scopes
 
-Run the test suite with coverage (this project uses `uv run pytest`):
-
-```bash
-uv run pytest
-```
-
-Notes
-
-- The package exposes a `decode_token` dependency that lazily initializes a key fetcher to avoid creating async clients at import time.
-- The codebase is organized for easy testing; tests mock the key fetcher where appropriate.
-
-Using Security Scopes
-
-You can require scopes on endpoints and chain scope-requiring dependencies. Example:
+You can require scopes on endpoints and chain scope dependencies. Example:
 
 ```python
-from fastapi import FastAPI, Security
-from fastapi_authz_jwt.auth import TokenData, require_scopes
-
-app = FastAPI()
-
-@app.get("/items")
-async def read_items(token: TokenData = Security(require_scopes, scopes=["items:read"])):
- return {"items": ["item1"], "user": token.username}
-
 # Reusable dependency that requires admin scope
-async def require_admin(token: TokenData = Security(require_scopes, scopes=["admin"])) -> TokenData:
- return token
+requires_admin = Security(jwt_bearer, scopes=["admin"])
 
-@app.get("/admin/users")
-async def admin_users(token: TokenData = Security(require_admin, scopes=["users:read"])):
- # SecurityScopes aggregates ["admin", "users:read"]
- return {"users": ["user1", "user2"], "admin": token.username}
+# When combined with an upstream Security that also requires "admin",
+# FastAPI will aggregate scopes and `JWTBearer` will validate them.
+@app.get("/admin/users", token: TokenData = Security(requires_admin, scopes=["users:read"]))
+async def admin_users():
+    return {"users": ["user1", "user2"], "emails": ["user1@local", "user2@local"]}
 ```
 
 This ensures the request bearer token contains both `admin` and `users:read` scopes.

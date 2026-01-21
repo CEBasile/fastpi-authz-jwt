@@ -2,7 +2,11 @@
 
 from fastapi import FastAPI, Security
 
-from src.fastapi_authz_jwt.auth import TokenData, require_scopes
+from fastapi_security_jwt import JWTBearer, TokenData
+
+bearer_scheme = JWTBearer(
+    openid_connect_url="http://localhost:8080/realms/default/.well-known/openid-configuration",
+)
 
 app = FastAPI()
 
@@ -14,20 +18,20 @@ async def public_endpoint():
 
 
 @app.get("/protected")
-async def protected_endpoint(token: TokenData = Security(require_scopes)):
+async def protected_endpoint(token: TokenData = Security(bearer_scheme)):
     """Requires valid JWT, no specific scopes"""
     return {"message": "Protected endpoint", "user": token.username, "all_scopes": token.groups}
 
 
 @app.get("/items")
-async def read_items(token: TokenData = Security(require_scopes, scopes=["items:read"])):
+async def read_items(token: TokenData = Security(bearer_scheme, scopes=["items:read"])):
     """Requires 'items:read' scope"""
     return {"items": ["item1", "item2"], "user": token.username}
 
 
 @app.post("/items")
 async def create_item(
-    item_name: str, token: TokenData = Security(require_scopes, scopes=["items:write"])
+    item_name: str, token: TokenData = Security(bearer_scheme, scopes=["items:write"])
 ):
     """Requires 'items:write' scope"""
     return {"message": f"Item {item_name} created", "created_by": token.username}
@@ -36,14 +40,13 @@ async def create_item(
 @app.delete("/items/{item_id}")
 async def delete_item(
     item_id: int,
-    token: TokenData = Security(require_scopes, scopes=["items:write", "items:delete"]),
+    token: TokenData = Security(bearer_scheme, scopes=["items:write", "items:delete"]),
 ):
     """Requires BOTH 'items:write' AND 'items:delete' scopes"""
     return {"message": f"Item {item_id} deleted", "deleted_by": token.username}
 
 
-# Example of chaining dependencies with SecurityScopes
-async def require_admin(token: TokenData = Security(require_scopes, scopes=["admin"])) -> TokenData:
+async def require_admin(token: TokenData = Security(bearer_scheme, scopes=["admin"])) -> TokenData:
     """Reusable dependency that requires admin scope"""
     return token
 
