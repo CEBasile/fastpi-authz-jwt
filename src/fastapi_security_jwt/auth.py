@@ -8,18 +8,12 @@ from typing import Any
 
 import jwt
 from fastapi import HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer, OpenIdConnect, SecurityScopes
+from fastapi.security import OpenIdConnect, SecurityScopes
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import InvalidTokenError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from pyjwt_key_fetcher.errors import JWTKeyFetcherError
 from pyjwt_key_fetcher.fetcher import AsyncKeyFetcher
-
-# For integration with FastAPI's /docs endpoint
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="http://localhost:8080/realms/default/protocol/openid-connect/token",
-    scopes={"openid": "OpenID", "profile": "Profile", "email": "Email", "groups": "Groups"},
-)
 
 
 class TokenData(BaseModel):
@@ -32,7 +26,7 @@ class TokenData(BaseModel):
     family_name: str | None = None
     email: str | None = None
     disabled: bool = False
-    groups: list[str] = Field(default_factory=list)
+    groups: list[str] = []
     exp: int = 0
     iat: int = 0
     nbf: int = 0
@@ -51,14 +45,16 @@ class TokenData(BaseModel):
 class JWTBearer(OpenIdConnect):
     """OpenID Connect security dependency that validates JWTs and required scopes.
 
-    It fetches the signing key(s) asynchronously via AsyncKeyFetcher and
-    validates the token using pyjwt. Missing or invalid tokens raise
+    JWTBearer will fetch the signing key(s) asynchronously via AsyncKeyFetcher
+    and validate the token using pyjwt. Missing or invalid tokens raise
     an HTTPException appropriate for FastAPI's security handling.
+
     """
 
     def __init__(
         self, *, openid_connect_url: str, jwt_opts: dict[str, Any] | None = None, **kwargs: Any
     ) -> None:
+        """Proccess initialization arguments."""
         oicd_args: dict[str, Any] = {"scheme_name": None, "description": None, "auto_error": True}
         for opt in oicd_args:
             if opt in kwargs:
@@ -80,6 +76,7 @@ class JWTBearer(OpenIdConnect):
 
         Raises:
             HTTPException with 401 or 403 when validation fails
+
         """
         authorization = request.headers.get("Authorization")
         scheme, token = get_authorization_scheme_param(authorization)

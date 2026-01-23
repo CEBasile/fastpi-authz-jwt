@@ -1,8 +1,8 @@
-# fastapi-authz-jwt
+# fastapi-security-jwt
 
-[![CI](https://github.com/cebasile/fastapi-authz-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/cebasile/fastapi-authz-jwt/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/OWNER/REPO/branch/main/graph/badge.svg)](https://codecov.io/gh/OWNER/REPO)
-[![PyPI version](https://img.shields.io/pypi/v/fastapi-authz-jwt.svg)](https://pypi.org/project/fastapi-authz-jwt)
+[![CI](https://github.com/CEBasile/fastapi-security-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/CEBasile/fastapi-security-jwt/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/CEBasile/fastapi-security-jwt/graph/badge.svg?token=RTKC596GZJ)](https://codecov.io/gh/CEBasile/fastapi-security-jwt)
+[![Version](https://img.shields.io/badge/dynamic/json?url=https://pkg.eziobasile.com/packages.json&label=version&query=$.version&color=blue&logo=python)](https://pkg.eziobasile.com)
 
 A small helper library for FastAPI that provides JWT decoding and scope-based authorization. Integrates directly with FastAPI's Security and SecurityScopes system.
 
@@ -10,14 +10,14 @@ A small helper library for FastAPI that provides JWT decoding and scope-based au
 
 - Zero middleware!
 - 100% Test Coverage!
-- Lightweight and dependency-injection friendly design!
+- Fully async compatible!
 
 ## Quickstart
 
 Install the package via pip:
 
 ```bash
-pip install fastapi-authz-jwt
+pip install fastapi-security-jwt
 ```
 
 Use in your FastAPI app:

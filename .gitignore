@@ -16,3 +16,11 @@ htmlcov/
 # Cache files
 .pytest_cache/
 .ruff_cache/
+
+# Test files
+.coverage
+coverage.xml
+junit.xml
+
+# IDE files
+.vscode/
