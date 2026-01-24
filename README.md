@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/CEBasile/fastapi-security-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/CEBasile/fastapi-security-jwt/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/CEBasile/fastapi-security-jwt/graph/badge.svg?token=RTKC596GZJ)](https://codecov.io/gh/CEBasile/fastapi-security-jwt)
-[![Version](https://img.shields.io/badge/dynamic/json?url=https://pkg.eziobasile.com/packages.json&label=version&query=$.version&color=blue&logo=python)](https://pkg.eziobasile.com)
+[![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpkg.eziobasile.com%2Fpypi%2Ffastapi-security-jwt%2Fjson&query=%24.info.version)](https://pkg.eziobasile.com)
 
 A small helper library for FastAPI that provides JWT decoding and scope-based authorization. Integrates directly with FastAPI's Security and SecurityScopes system.
 

@@ -12,8 +12,9 @@ from fastapi.security import OpenIdConnect, SecurityScopes
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import InvalidTokenError
 from pydantic import BaseModel, ConfigDict
-from pyjwt_key_fetcher.errors import JWTKeyFetcherError
-from pyjwt_key_fetcher.fetcher import AsyncKeyFetcher
+
+from .cache import JWTKeyCache
+from .errors import KeyFetchError
 
 
 class TokenData(BaseModel):
@@ -52,24 +53,37 @@ class JWTBearer(OpenIdConnect):
     """
 
     def __init__(
-        self, *, openid_connect_url: str, jwt_opts: dict[str, Any] | None = None, **kwargs: Any
+        self,
+        *,
+        openid_connect_url: str,
+        audience: str,
+        jwt_opts: dict[str, Any] | None = None,
+        **kwargs: Any,
     ) -> None:
-        """Proccess initialization arguments."""
+        """Proccess initialization arguments.
+
+        Args:
+            openid_connect_url (str): URL of your OICD provider.
+            audience (str): this is you, typically your Client ID.
+            jwt_opts (dict): passed directly to jwt.decode()
+            **kwargs: passed directly to underlying TTLCache
+        """
         oicd_args: dict[str, Any] = {"scheme_name": None, "description": None, "auto_error": True}
         for opt in oicd_args:
             if opt in kwargs:
                 oicd_args[opt] = kwargs.pop(opt)
 
+        self.audience = audience
         self.jwt_opts = jwt_opts or {}
-        self.key_fetcher: AsyncKeyFetcher = AsyncKeyFetcher(**kwargs)
+        self.key_cache: JWTKeyCache = JWTKeyCache(openid_connect_url, **kwargs)
         super().__init__(openIdConnectUrl=openid_connect_url, **oicd_args)
 
     async def __call__(self, request: Request, security_scopes: SecurityScopes) -> TokenData:  # type: ignore[override]
         """Validate the bearer token and ensure required scopes are present.
 
         Args:
-            request: incoming request
-            security_scopes: scopes required by the dependency chain
+            request (Request): incoming request
+            security_scopes (SecurityScopes): scopes required by the dependency chain
 
         Returns:
             TokenData parsed from the validated JWT
@@ -84,9 +98,11 @@ class JWTBearer(OpenIdConnect):
             raise self.make_not_authenticated_error()
 
         try:
-            key_entry = await self.key_fetcher.get_key(token)
-            token_data = jwt.decode(jwt=token, options=self.jwt_opts, **key_entry)
-        except (InvalidTokenError, JWTKeyFetcherError) as e:
+            key_entry = await self.key_cache.fetch_key(token)
+            token_data = jwt.decode(
+                jwt=token, **key_entry, options=self.jwt_opts, audience=self.audience
+            )
+        except (InvalidTokenError, KeyFetchError) as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",

@@ -6,22 +6,24 @@ import jwt
 import pytest
 from fastapi import HTTPException, Request
 from fastapi.security import SecurityScopes
-from pyjwt_key_fetcher.errors import JWTKeyFetcherError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from fastapi_security_jwt import JWTBearer, TokenData
+from fastapi_security_jwt.errors import KeyFetchError
 
 
 @pytest.fixture
 async def jwt_bearer():
+    """Fixture to provide a JWTBearer instance."""
     return JWTBearer(
         openid_connect_url="http://localhost:8080/realms/default/.well-known/openid-configuration",
         scheme_name="TestJWTBearer",
+        audience="test-client",
     )
 
 
 def test_tokendata_scopes_alias():
-    """Check scopes is aliased to groups"""
+    """Check scopes is aliased to groups."""
     token = TokenData(groups=["read", "write"])
     assert token.scopes == ["read", "write"]
 
@@ -31,9 +33,9 @@ async def test_decode_token_invalid(jwt_bearer: JWTBearer):
     invalid_token = "invalid.token.here"
 
     # Mock AsyncKeyFetcher to raise an error
-    mock_fetcher = AsyncMock()
-    mock_fetcher.get_key = AsyncMock(side_effect=JWTKeyFetcherError("Invalid token"))
-    jwt_bearer.key_fetcher = mock_fetcher
+    mock_cacher = AsyncMock()
+    mock_cacher.fetch_key = AsyncMock(side_effect=KeyFetchError("Invalid token"))
+    jwt_bearer.key_cache = mock_cacher
 
     # Build a minimal Request with Authorization header to invoke JWTBearer
     request = Request(
@@ -49,12 +51,16 @@ async def test_decode_token_invalid(jwt_bearer: JWTBearer):
 
 async def test_require_scopes_success(jwt_bearer: JWTBearer):
     """Test scope check via JWTBearer with valid scopes."""
-    payload = {"preferred_username": "testuser", "groups": ["admin", "users:read", "users:write"]}
+    payload = {
+        "aud": "test-client",
+        "preferred_username": "testuser",
+        "groups": ["admin", "users:read", "users:write"],
+    }
     token = jwt.encode(payload, "!secret", algorithm="HS256")
 
-    mock_fetcher = AsyncMock()
-    mock_fetcher.get_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
-    jwt_bearer.key_fetcher = mock_fetcher
+    mock_cacher = AsyncMock()
+    mock_cacher.fetch_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
+    jwt_bearer.key_cache = mock_cacher
 
     request = Request(
         scope={"type": "http", "headers": [(b"authorization", b"Bearer " + token.encode())]}
@@ -67,12 +73,16 @@ async def test_require_scopes_success(jwt_bearer: JWTBearer):
 
 async def test_require_scopes_multiple_required(jwt_bearer: JWTBearer):
     """Test scope check via JWTBearer with multiple required scopes."""
-    payload = {"preferred_username": "testuser", "groups": ["admin", "users:read", "users:write"]}
+    payload = {
+        "aud": "test-client",
+        "preferred_username": "testuser",
+        "groups": ["admin", "users:read", "users:write"],
+    }
     token = jwt.encode(payload, "!secret", algorithm="HS256")
 
-    mock_fetcher = AsyncMock()
-    mock_fetcher.get_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
-    jwt_bearer.key_fetcher = mock_fetcher
+    mock_cacher = AsyncMock()
+    mock_cacher.fetch_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
+    jwt_bearer.key_cache = mock_cacher
 
     request = Request(
         scope={"type": "http", "headers": [(b"authorization", b"Bearer " + token.encode())]}
@@ -85,12 +95,12 @@ async def test_require_scopes_multiple_required(jwt_bearer: JWTBearer):
 
 async def test_require_scopes_missing_scope(jwt_bearer: JWTBearer):
     """Test JWTBearer raises when a required scope is missing."""
-    payload = {"preferred_username": "testuser", "groups": ["users:read"]}
+    payload = {"aud": "test-client", "preferred_username": "testuser", "groups": ["users:read"]}
     token = jwt.encode(payload, "!secret", algorithm="HS256")
 
-    mock_fetcher = AsyncMock()
-    mock_fetcher.get_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
-    jwt_bearer.key_fetcher = mock_fetcher
+    mock_cacher = AsyncMock()
+    mock_cacher.fetch_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
+    jwt_bearer.key_cache = mock_cacher
 
     request = Request(
         scope={"type": "http", "headers": [(b"authorization", b"Bearer " + token.encode())]}
@@ -106,12 +116,12 @@ async def test_require_scopes_missing_scope(jwt_bearer: JWTBearer):
 
 async def test_require_scopes_no_scopes_required(jwt_bearer: JWTBearer):
     """Test JWTBearer when no scopes are required (should pass)."""
-    payload = {"preferred_username": "testuser", "groups": []}
+    payload = {"aud": "test-client", "preferred_username": "testuser", "groups": []}
     token = jwt.encode(payload, "!secret", algorithm="HS256")
 
-    mock_fetcher = AsyncMock()
-    mock_fetcher.get_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
-    jwt_bearer.key_fetcher = mock_fetcher
+    mock_cacher = AsyncMock()
+    mock_cacher.fetch_key = AsyncMock(return_value={"key": "!secret", "algorithms": ["HS256"]})
+    jwt_bearer.key_cache = mock_cacher
 
     request = Request(
         scope={"type": "http", "headers": [(b"authorization", b"Bearer " + token.encode())]}

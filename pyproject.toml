@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-security-jwt"
-version = "0.2.0"
+version = "0.3.0"
 description = "FastAPI JWT authorization helpers: scope validation, token decoding, and JWK key fetching integration."
 readme = "README.md"
 authors = [{ name = "Connor Basile", email = "cbasile2@gmail.com" }]
@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "pyjwt[crypto]>=2.10.1",
     "pyjwt-key-fetcher>=0.8.0",
+    "cachetools>=5.5.2",
 ]
 
 [tool.pytest.ini_options]
@@ -87,5 +88,8 @@ requires = ["uv_build>=0.9.25,<0.10.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = ["pre-commit>=4.5.1"]
+dev = [
+    "pre-commit>=4.5.1",
+    "uvicorn>=0.40.0",
+]
 test = ["httpx>=0.28.1", "pytest>=9.0.2", "pytest-cov>=5.0.0"]

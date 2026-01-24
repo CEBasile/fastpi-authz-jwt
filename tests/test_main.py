@@ -43,6 +43,7 @@ async def test_protected_endpoint_with_token(client):
     """Test accessing protected endpoint with a valid token."""
     headers = {"Authorization": "Bearer imatoken"}
     mock_payload = {
+        "aud": "test-client",
         "preferred_username": "joebob",
         "given_name": "Robert",
         "family_name": "Landers",
@@ -53,9 +54,9 @@ async def test_protected_endpoint_with_token(client):
     with patch("fastapi_security_jwt.auth.jwt.decode", return_value=mock_payload):
         from tests import main  # noqa: PLC0415
 
-        key_fetcher_stub = Mock()
-        key_fetcher_stub.get_key = AsyncMock(return_value={})
-        main.bearer_scheme.key_fetcher = key_fetcher_stub
+        key_cacher_stub = Mock()
+        key_cacher_stub.fetch_key = AsyncMock(return_value={})
+        main.bearer_scheme.key_cache = key_cacher_stub
 
         response = await client.get("/protected", headers=headers)
     assert response.status_code == 200
