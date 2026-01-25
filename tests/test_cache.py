@@ -66,13 +66,10 @@ def cache():
     return JWTKeyCache("localhost")
 
 
-async def test_async_context(cache):
-    """Test async client gets created at enter and closed on exit."""
-    assert cache._client is None
-
-    async with cache as self:
-        assert self._client is not None
-
+async def test_client_close(cache):
+    """Test that that cache client can be closed."""
+    cache._client = AsyncClient()
+    await cache.close()
     assert cache._client is None
 
 
@@ -82,24 +79,28 @@ async def test_client_close_noop(cache):
     assert cache._client is None
 
 
+@patch("fastapi_security_jwt.cache.AsyncClient.get")
 async def test_key_fetch_caches(
-    cache, mock_token, mock_token_header, mock_oidc_config, mock_jwks_response
+    mock_get,
+    cache,
+    mock_token,
+    mock_oidc_config,
+    mock_jwks_response,
 ):
     """Tests that a key can be retrieved and cached."""
-    with patch.object(AsyncClient, "get") as mock_get:
-        oidc_response = MagicMock(spec=Response)
-        oidc_response.json.resturn_value = mock_oidc_config
-        oidc_response.raise_for_status = MagicMock()
+    oidc_response = MagicMock(spec=Response)
+    oidc_response.json.resturn_value = mock_oidc_config
+    oidc_response.raise_for_status = MagicMock()
 
-        jwks_response = MagicMock(spec=Response)
-        jwks_response.json.return_value = mock_jwks_response
-        jwks_response.for_status = MagicMock()
+    jwks_response = MagicMock(spec=Response)
+    jwks_response.json.return_value = mock_jwks_response
+    jwks_response.for_status = MagicMock()
 
-        mock_get.side_effect = [oidc_response, jwks_response]
+    mock_get.side_effect = [oidc_response, jwks_response]
 
-        key = await cache.fetch_key(mock_token)
-        assert key is not None
-        assert "test-key-1" in cache
+    key = await cache.fetch_key(mock_token)
+    assert key is not None
+    assert "test-key-1" in cache
 
 
 async def test_key_fetch_returns_early(cache, mock_token):

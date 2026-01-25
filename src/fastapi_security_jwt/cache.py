@@ -22,17 +22,6 @@ class JWTKeyCache(TTLCache):
         self._client: AsyncClient | None = None
         super().__init__(maxsize=max_size, ttl=ttl)
 
-    # TODO: Add locking to prevent multiple fetches at once when used this way
-    async def __aenter__(self):
-        """Create the async client on context enter."""
-        await self._create_client()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):  # pragma: no branch
-        """Close the async client on context exist."""
-        if self._client is not None:
-            await self.close()
-
     async def _create_client(self):
         if self._client is None:
             self._client = AsyncClient()
