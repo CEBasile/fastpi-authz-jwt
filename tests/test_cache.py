@@ -1,6 +1,6 @@
 """Tests for the caching module (cache.py)."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, Mock
 
 import jwt
 import pytest
@@ -63,7 +63,13 @@ def mock_token():
 @pytest.fixture
 def cache():
     """JWTKeyCache singleton for testing."""
-    return JWTKeyCache("localhost")
+    return JWTKeyCache(
+        "localhost",
+        cache_args={
+            "maxsize": 10,
+            "ttl": 300,
+        },
+    )
 
 
 async def test_client_close(cache):
@@ -79,24 +85,24 @@ async def test_client_close_noop(cache):
     assert cache._client is None
 
 
-@patch("fastapi_security_jwt.cache.AsyncClient.get")
 async def test_key_fetch_caches(
-    mock_get,
     cache,
     mock_token,
     mock_oidc_config,
     mock_jwks_response,
 ):
     """Tests that a key can be retrieved and cached."""
-    oidc_response = MagicMock(spec=Response)
-    oidc_response.json.resturn_value = mock_oidc_config
-    oidc_response.raise_for_status = MagicMock()
+    cache._client = AsyncMock(spec=AsyncClient)
 
-    jwks_response = MagicMock(spec=Response)
+    oidc_response = Mock(spec=Response)
+    oidc_response.json.return_value = mock_oidc_config
+    oidc_response.raise_for_status.return_value = None
+
+    jwks_response = Mock(spec=Response)
     jwks_response.json.return_value = mock_jwks_response
-    jwks_response.for_status = MagicMock()
+    jwks_response.raise_for_status.return_value = None
 
-    mock_get.side_effect = [oidc_response, jwks_response]
+    cache._client.get.side_effect = [oidc_response, jwks_response]
 
     key = await cache.fetch_key(mock_token)
     assert key is not None

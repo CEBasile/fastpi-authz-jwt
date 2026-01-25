@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-security-jwt"
-version = "0.3.0"
+version = "0.3.1"
 description = "FastAPI JWT authorization helpers: scope validation, token decoding, and JWK key fetching integration."
 readme = "README.md"
 authors = [{ name = "Connor Basile", email = "cbasile2@gmail.com" }]
