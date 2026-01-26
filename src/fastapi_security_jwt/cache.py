@@ -1,13 +1,13 @@
 """Essentially recreating PyJWKClient but make it async."""
 
-from cachetools import TTLCache
 from httpx import AsyncClient
-from jwt import PyJWKSet, get_unverified_header
+from jwt import PyJWK, PyJWKSet, get_unverified_header
+from jwt.jwk_set_cache import JWKSetCache
 
 from .errors import KeyFetchError
 
 
-class JWTKeyCache(TTLCache):
+class JWTKeyCache(JWKSetCache):
     """Fetches keys from OICD endpoint automatically if they don't exist."""
 
     def __init__(self, openid_connect_url: str, cache_args: dict):
@@ -41,7 +41,7 @@ class JWTKeyCache(TTLCache):
 
         return response.json()
 
-    async def fetch_key(self, token: str):
+    async def fetch_key(self, token: str) -> PyJWK | None:
         """Loads cache on first call from OICD endpoint and fetches key if not found.
 
         Args:
@@ -58,21 +58,25 @@ class JWTKeyCache(TTLCache):
             KeyFetchError: If anything fails while fetching the key.
 
         """
-        client = await self._create_client()
-
         kid = get_unverified_header(token)["kid"]
+        if jwks := self.get():
+            try:
+                return jwks[kid]
+            except KeyError:
+                pass
 
-        if kid in self:
-            return self[kid]
+        client = await self._create_client()
 
         try:
             config = await self._fetch_oicd_config()
             response = await client.get(config["jwks_uri"])
             response.raise_for_status()
-
-            for key in PyJWKSet(response.json().get("keys", [])).keys:
-                self[key.key_id] = key
         except Exception as e:
             raise KeyFetchError from e
 
-        return self[kid]
+        self.put(PyJWKSet(response.json().get("keys", [])))
+
+        try:
+            return self.get()[kid]  # type: ignore
+        except KeyError:
+            return None

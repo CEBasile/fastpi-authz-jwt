@@ -485,10 +485,9 @@ wheels = [
 
 [[package]]
 name = "fastapi-security-jwt"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cachetools" },
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -508,7 +507,6 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cachetools", specifier = ">=5.5.2" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },

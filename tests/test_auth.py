@@ -17,8 +17,7 @@ def jwt_bearer():
     return JWTBearer(
         openid_connect_url="http://localhost:8080/realms/default/.well-known/openid-configuration",
         cache_args={
-            "maxsize": 10,
-            "ttl": 300,
+            "lifespan": 300,
         },
     )
 

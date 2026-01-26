@@ -6,7 +6,7 @@ from fastapi_security_jwt import JWTBearer, TokenData
 
 bearer_scheme = JWTBearer(
     openid_connect_url="http://localhost:8080/realms/default/.well-known/openid-configuration",
-    cache_args={"maxsize": 10, "ttl": 300},
+    cache_args={"lifespan": 300},
 )
 
 app = FastAPI()

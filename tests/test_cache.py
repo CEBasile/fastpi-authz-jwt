@@ -15,22 +15,8 @@ def mock_jwks_response():
     """Dummy JWKS response data."""
     return {
         "keys": [
-            {
-                "kty": "RSA",
-                "use": "sig",
-                "kid": "test-key-1",
-                "n": "xGOr-H7A...",
-                "e": "AQAB",
-                "alg": "RS256",
-            },
-            {
-                "kty": "RSA",
-                "use": "sig",
-                "kid": "test-key-2",
-                "n": "yHPs-I8B...",
-                "e": "AQAB",
-                "alg": "RS256",
-            },
+            {"kty": "oct", "kid": "test-key-1", "k": b"IXNlY3JldA=="},
+            {"kty": "oct", "kid": "test-key-2", "k": b"IXNlY3JldA=="},
         ]
     }
 
@@ -61,13 +47,21 @@ def mock_token():
 
 
 @pytest.fixture
+def mock_token_no_key():
+    """Generates a 'real' dummy token for decoding that doesn't have a key."""
+    payload = {"sub": "arealboy"}
+    headers = {"kid": "test-key-3"}
+
+    return jwt.encode(payload, "!secret", algorithm="HS256", headers=headers)
+
+
+@pytest.fixture
 def cache():
     """JWTKeyCache singleton for testing."""
     return JWTKeyCache(
         "localhost",
         cache_args={
-            "maxsize": 10,
-            "ttl": 300,
+            "lifespan": 300,
         },
     )
 
@@ -106,17 +100,58 @@ async def test_key_fetch_caches(
 
     key = await cache.fetch_key(mock_token)
     assert key is not None
-    assert "test-key-1" in cache
+    assert cache.get()["test-key-1"] == key
+
+
+async def test_key_fetch_not_found(cache, mock_oidc_config, mock_jwks_response, mock_token_no_key):
+    """Tests that none is returned instead of failing if the key is not found."""
+    cache._client = AsyncMock(spec=AsyncClient)
+
+    oidc_response = Mock(spec=Response)
+    oidc_response.json.return_value = mock_oidc_config
+    oidc_response.raise_for_status.return_value = None
+
+    jwks_response = Mock(spec=Response)
+    jwks_response.json.return_value = mock_jwks_response
+    jwks_response.raise_for_status.return_value = None
+
+    cache._client.get.side_effect = [oidc_response, jwks_response]
+
+    key = await cache.fetch_key(mock_token_no_key)
+    assert key is None
+
+
+async def test_key_fetch_retry(cache, mock_oidc_config, mock_jwks_response, mock_token_no_key):
+    """Tests the fetch_key retry functionality."""
+    cache.get = Mock()
+    cache.get.return_value = {"test-key-2": "imarealboy"}
+    cache._client = AsyncMock(spec=AsyncClient)
+
+    oidc_response = Mock(spec=Response)
+    oidc_response.json.return_value = mock_oidc_config
+    oidc_response.raise_for_status.return_value = None
+
+    jwks_response = Mock(spec=Response)
+    jwks_response.json.return_value = mock_jwks_response
+    jwks_response.raise_for_status.return_value = None
+
+    cache._client.get.side_effect = [oidc_response, jwks_response]
+
+    await cache.fetch_key(mock_token_no_key)
+    assert cache.get.call_count == 2
 
 
 async def test_key_fetch_returns_early(cache, mock_token):
     """Intentionally not mocked so will fail if cache misses."""
-    cache["test-key-1"] = "a key set"
+    mock_get = Mock()
+    mock_get.return_value = {"test-key-1": "a key set"}
+    cache.get = mock_get
     key = await cache.fetch_key(mock_token)
     assert isinstance(key, str)
 
 
 async def test_key_fetch_failure(cache, mock_token):
     """Intentionally not mocked to cause failure."""
-    with pytest.raises(KeyFetchError):
+    with pytest.raises(KeyFetchError) as exc_info:
         await cache.fetch_key(mock_token)
+    assert exc_info.value.args[0] == "Error while fetching key from JWKS endpoint"
