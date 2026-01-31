@@ -14,7 +14,7 @@ from jwt import InvalidTokenError
 from pydantic import BaseModel, ConfigDict
 
 from .cache import JWTKeyCache
-from .errors import KeyFetchError
+from .errors import KeyFetchError, KeyNotFoundError
 
 
 class TokenData(BaseModel):
@@ -105,8 +105,11 @@ class JWTBearer(OpenIdConnect):
 
         try:
             key_entry = await self.key_cache.fetch_key(token)
-            token_data = jwt.decode(jwt=token, **self.jwt_opts, **key_entry)
-        except (InvalidTokenError, KeyFetchError) as e:
+            if isinstance(key_entry, dict):
+                token_data = jwt.decode(jwt=token, **key_entry, **self.jwt_opts)
+            else:
+                token_data = jwt.decode(jwt=token, key=key_entry, **self.jwt_opts)
+        except (InvalidTokenError, KeyFetchError, KeyNotFoundError) as e:
             raise self.make_not_authenticated_error(401, "Could not validate credentials") from e
 
         authenticate_value = (

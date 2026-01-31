@@ -8,3 +8,12 @@ class KeyFetchError(Exception):
         """Initialize the error with a message."""
         self.message = message
         super().__init__(self.message)
+
+
+class KeyNotFoundError(Exception):
+    """Raised when the key id from the token cannot be found in the JWKS."""
+
+    def __init__(self, message: str = "Key ID could not be found in the JWKS."):
+        """Initialize the error with a message."""
+        self.message = message
+        super().__init__(self.message)

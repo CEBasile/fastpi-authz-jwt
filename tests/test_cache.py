@@ -7,7 +7,7 @@ import pytest
 from httpx import AsyncClient, Response
 
 from fastapi_security_jwt.cache import JWTKeyCache
-from fastapi_security_jwt.errors import KeyFetchError
+from fastapi_security_jwt.errors import KeyFetchError, KeyNotFoundError
 
 
 @pytest.fixture
@@ -117,8 +117,8 @@ async def test_key_fetch_not_found(cache, mock_oidc_config, mock_jwks_response, 
 
     cache._client.get.side_effect = [oidc_response, jwks_response]
 
-    key = await cache.fetch_key(mock_token_no_key)
-    assert key is None
+    with pytest.raises(KeyNotFoundError):
+        await cache.fetch_key(mock_token_no_key)
 
 
 async def test_key_fetch_retry(cache, mock_oidc_config, mock_jwks_response, mock_token_no_key):
@@ -137,7 +137,8 @@ async def test_key_fetch_retry(cache, mock_oidc_config, mock_jwks_response, mock
 
     cache._client.get.side_effect = [oidc_response, jwks_response]
 
-    await cache.fetch_key(mock_token_no_key)
+    with pytest.raises(KeyNotFoundError):
+        await cache.fetch_key(mock_token_no_key)
     assert cache.get.call_count == 2
 
 

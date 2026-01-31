@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from jwt import PyJWK, PyJWKSet, get_unverified_header
 from jwt.jwk_set_cache import JWKSetCache
 
-from .errors import KeyFetchError
+from .errors import KeyFetchError, KeyNotFoundError
 
 
 class JWTKeyCache(JWKSetCache):
@@ -41,21 +41,18 @@ class JWTKeyCache(JWKSetCache):
 
         return response.json()
 
-    async def fetch_key(self, token: str) -> PyJWK | None:
+    async def fetch_key(self, token: str) -> PyJWK:
         """Loads cache on first call from OICD endpoint and fetches key if not found.
 
         Args:
             token (str): The token to extract the kid from.
 
         Returns:
-            A "key entry" with the following structure:
-            {
-                "key": <certificate string>,
-                "alg": <algorithm string>,
-            }
+            A  PyJWK "key entry" if found in the JWKS.
 
         Raises:
             KeyFetchError: If anything fails while fetching the key.
+            KeyNotFoundError: If the kid cannot be found inthe jwks.
 
         """
         kid = get_unverified_header(token)["kid"]
@@ -78,5 +75,5 @@ class JWTKeyCache(JWKSetCache):
 
         try:
             return self.get()[kid]  # type: ignore
-        except KeyError:
-            return None
+        except KeyError as e:
+            raise KeyNotFoundError from e
